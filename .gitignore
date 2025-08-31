@@ -1,0 +1,67 @@
+# Backend Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+ENV/
+env/
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+*.log
+*.pot
+*.pyc
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+.hypothesis/
+.pytest_cache/
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+
+# Frontend
+node_modules/
+dist/
+dist-ssr/
+*.local
+.DS_Store
+*.pem
+.env*.local
+*.tsbuildinfo
+.next/
+out/
+build/
+.vercel
+*.tgz
+.env
+.env.*
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Data files (based on your backend structure)
+backend/qode-intel/data/raw/*
+backend/qode-intel/data/processed/*
+backend/qode-intel/data/parquet/*
+!backend/qode-intel/data/raw/.gitkeep
+!backend/qode-intel/data/processed/.gitkeep
+!backend/qode-intel/data/parquet/.gitkeep
+
+# OS specific
+.DS_Store
+Thumbs.db

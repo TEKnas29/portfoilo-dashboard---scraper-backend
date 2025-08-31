@@ -1,0 +1,32 @@
+version: '3.8'
+
+services:
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "5173:5173"
+    environment:
+      - VITE_API_URL=http://backend:8000
+    depends_on:
+      - backend
+    networks:
+      - qode-network
+
+  backend:
+    build:
+      context: ./backend/qode-intel
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend/qode-intel/data:/app/data
+    environment:
+      - PYTHONUNBUFFERED=1
+    networks:
+      - qode-network
+
+networks:
+  qode-network:
+    driver: bridge

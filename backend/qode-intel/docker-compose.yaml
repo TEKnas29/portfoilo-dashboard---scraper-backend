@@ -1,0 +1,14 @@
+services:
+  app:
+    build:
+      context: .
+    ports:
+        - "8000:8000"
+    # This is the important part for automatic updates
+    develop:
+      watch:
+        - action: rebuild
+          path: .
+        - action: sync
+          path: .
+          target: /app
