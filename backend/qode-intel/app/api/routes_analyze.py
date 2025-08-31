@@ -6,12 +6,14 @@ from app.services.processing.visualize import plot_signal
 
 router = APIRouter(prefix="/analyze", tags=["analyze"])
 
+
 @router.get("/signal")
 async def signal_json():
     since_utc, until_utc = last_24h_window()
     df = load_last_24h(since_utc, until_utc)
     comp = compute_composite(df)
     return comp.to_dict(as_series=False)
+
 
 @router.get("/signal.png")
 async def signal_png():

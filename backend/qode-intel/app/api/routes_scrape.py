@@ -17,28 +17,35 @@ router = APIRouter(prefix="/scrape", tags=["scrape"])
 
 JOBS: Dict[str, Dict] = {}
 
+
 @router.post("/login", response_model=LoginStatus)
-async def login(credentials: LoginCredentials, backend = Depends(get_backend)):
+async def login(credentials: LoginCredentials, backend=Depends(get_backend)):
     """Login to Twitter and save authentication state"""
     try:
-        await backend.pw.login_and_save_state(credentials.username, credentials.password)
+        await backend.pw.login_and_save_state(
+            credentials.username, credentials.password
+        )
         return LoginStatus(is_logged_in=True, message="Successfully logged in")
     except Exception as e:
         logger.error(f"Login failed: {e}")
         raise HTTPException(status_code=401, detail=str(e))
 
+
 @router.get("/login/status", response_model=LoginStatus)
-async def check_login_status(backend = Depends(get_backend)):
+async def check_login_status(backend=Depends(get_backend)):
     """Check if we have a valid Twitter login state"""
     try:
         is_valid = await backend.pw.check_login_state()
         return LoginStatus(
             is_logged_in=is_valid,
-            message="Login state valid" if is_valid else "Not logged in or session expired"
+            message="Login state valid"
+            if is_valid
+            else "Not logged in or session expired",
         )
     except Exception as e:
         logger.error(f"Error checking login status: {e}")
         return LoginStatus(is_logged_in=False, message=str(e))
+
 
 async def _run_job(job_id: str, hashtags, limit, backend):
     JOBS[job_id]["status"] = "running"
@@ -50,44 +57,55 @@ async def _run_job(job_id: str, hashtags, limit, backend):
 
         # Save raw JSONL for auditing
         raw_file = RAW_PATH / f"raw_{job_id}.jsonl"
-        
+
         with raw_file.open("w", encoding="utf-8") as f:
             for t in tweets:
-                f.write(json.dumps(t.model_dump(), ensure_ascii=False, default=str) + "\n")
+                f.write(
+                    json.dumps(t.model_dump(), ensure_ascii=False, default=str) + "\n"
+                )
 
         # Clean + dedupe
         cleaned = clean_tweets(tweets)
         unique = dedupe_tweets(cleaned)
-        
+
         df = to_polars_rows([u.model_dump() for u in unique])
         outdir = write_parquet_partitioned(df)
 
-        JOBS[job_id].update({
-            "status": "done",
-            "raw_count": len(tweets),
-            "unique_count": len(unique),
-            "parquet_dir": outdir,
-        })
+        JOBS[job_id].update(
+            {
+                "status": "done",
+                "raw_count": len(tweets),
+                "unique_count": len(unique),
+                "parquet_dir": outdir,
+            }
+        )
     except Exception as e:
         logger.exception("scrape job failed")
         JOBS[job_id]["status"] = "error"
         JOBS[job_id]["error"] = str(e)
+
 
 @router.post("/start")
 async def start_scrape(
     background: BackgroundTasks,
     hashtags: str = Query(
         ",".join(SCRAPE_HASHTAGS),
-        description="Comma-separated list of hashtags (include #)"
+        description="Comma-separated list of hashtags (include #)",
     ),
     limit: int = Query(SCRAPE_MIN_TWEETS, ge=100, le=20000),
-    backend = Depends(get_backend),
+    backend=Depends(get_backend),
 ):
     tag_list = [h.strip() for h in hashtags.split(",") if h.strip()]
     job_id = uuid.uuid4().hex
-    JOBS[job_id] = {"status": "queued", "created_at": utc_now().isoformat(), "hashtags": tag_list, "limit": limit}
+    JOBS[job_id] = {
+        "status": "queued",
+        "created_at": utc_now().isoformat(),
+        "hashtags": tag_list,
+        "limit": limit,
+    }
     background.add_task(_run_job, job_id, tag_list, limit, backend)
     return {"job_id": job_id, "status": JOBS[job_id]["status"]}
+
 
 @router.get("/status/{job_id}")
 async def job_status(job_id: str):

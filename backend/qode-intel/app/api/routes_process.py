@@ -5,6 +5,7 @@ from app.services.processing.vectorize import build_tfidf
 
 router = APIRouter(prefix="/process", tags=["process"])
 
+
 @router.post("/tfidf")
 async def build_vectors(max_features: int = Query(20000, ge=500, le=50000)):
     since_utc, until_utc = last_24h_window()

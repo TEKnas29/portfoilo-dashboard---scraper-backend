@@ -2,6 +2,7 @@ import io
 import pandas as pd
 import polars as pl
 import matplotlib
+
 matplotlib.use("Agg")  # headless
 import matplotlib.pyplot as plt
 from app.config import PLOT_MAX_POINTS

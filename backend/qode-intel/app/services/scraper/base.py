@@ -35,10 +35,12 @@ class ScraperBase:
     # -------------------
     # Playwright Scraper
     # -------------------
-    async def _scrape_with_playwright(self, hashtags: List[str], limit: int = 2000) -> List[Dict]:
+    async def _scrape_with_playwright(
+        self, hashtags: List[str], limit: int = 2000
+    ) -> List[Dict]:
         from playwright.async_api import async_playwright
 
-        query = " OR ".join([f'%23{tag.lstrip("#")}' for tag in hashtags])
+        query = " OR ".join([f"%23{tag.lstrip('#')}" for tag in hashtags])
         url = f"https://x.com/search?q={query}&f=live&lang=en"
 
         tweets = []
@@ -50,13 +52,15 @@ class ScraperBase:
             last_height = 0
             while len(tweets) < limit:
                 cards = await page.query_selector_all("article")
-                for card in cards[len(tweets):]:
+                for card in cards[len(tweets) :]:
                     try:
                         content = await card.inner_text()
-                        tweets.append({
-                            "content": content,
-                            "timestamp": datetime.utcnow().isoformat()
-                        })
+                        tweets.append(
+                            {
+                                "content": content,
+                                "timestamp": datetime.utcnow().isoformat(),
+                            }
+                        )
                         if len(tweets) >= limit:
                             break
                     except Exception:

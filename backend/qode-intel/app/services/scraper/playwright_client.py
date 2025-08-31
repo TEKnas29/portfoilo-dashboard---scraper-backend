@@ -8,7 +8,7 @@ import platform
 import os
 
 # Fix Windows event loop policy
-if platform.system() == 'Windows':
+if platform.system() == "Windows":
     if sys.version_info >= (3, 8):
         asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
 
@@ -51,7 +51,9 @@ class PlaywrightClient:
                 await page.press('input[name="text"]', "Enter")
                 await page.wait_for_selector('input[name="password"]', timeout=20000)
             elif await page.locator('input[name="verification_code"]').count():
-                raise RuntimeError("Verification code required, cannot proceed with automation")
+                raise RuntimeError(
+                    "Verification code required, cannot proceed with automation"
+                )
             else:
                 raise RuntimeError("Password field not found; unknown login flow")
 
@@ -144,7 +146,7 @@ class PlaywrightClient:
                         timestamp=ts,
                         content=data["content"],
                         mentions=mentions,
-                        hashtags=list({*hashtags_ex, hashtag.strip('#').lower()}),
+                        hashtags=list({*hashtags_ex, hashtag.strip("#").lower()}),
                     )
                 except Exception:
                     return None
@@ -194,7 +196,7 @@ class PlaywrightClient:
                 browser, context = await self._get_authenticated_context(p)
 
                 for i in range(0, len(hashtags), BATCH_SIZE):
-                    batch = hashtags[i:i + BATCH_SIZE]
+                    batch = hashtags[i : i + BATCH_SIZE]
                     pages = [await context.new_page() for _ in batch]
                     tasks = [
                         self._scrape_hashtag(pages[j], h, since_utc, until_utc, per)

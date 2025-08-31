@@ -8,5 +8,14 @@ def clean_tweets(tweets: Iterable[Tweet]) -> List[Tweet]:
     for t in tweets:
         text = clean_text(t.content)
         mentions, hashtags = extract_entities(text)
-        out.append(Tweet(**{**t.model_dump(), "content": text, "mentions": mentions, "hashtags": hashtags}))
+        out.append(
+            Tweet(
+                **{
+                    **t.model_dump(),
+                    "content": text,
+                    "mentions": mentions,
+                    "hashtags": hashtags,
+                }
+            )
+        )
     return out

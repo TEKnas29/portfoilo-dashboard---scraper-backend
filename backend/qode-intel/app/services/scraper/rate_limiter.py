@@ -1,5 +1,7 @@
 import asyncio
 import time
+
+
 class TokenBucket:
     def __init__(self, rate: float, capacity: int):
         self.rate = rate
@@ -7,6 +9,7 @@ class TokenBucket:
         self._tokens = capacity
         self._last = time.monotonic()
         self._lock = asyncio.Lock()
+
     async def take(self, tokens: int = 1):
         async with self._lock:
             now = time.monotonic()

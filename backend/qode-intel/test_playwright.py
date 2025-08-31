@@ -5,6 +5,7 @@ import logging
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
+
 async def main():
     try:
         logger.info("Starting Playwright test")
@@ -23,6 +24,7 @@ async def main():
             await browser.close()
     except Exception as e:
         logger.error(f"Error: {str(e)}", exc_info=True)
+
 
 if __name__ == "__main__":
     asyncio.run(main())

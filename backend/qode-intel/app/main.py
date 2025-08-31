@@ -5,7 +5,7 @@ import asyncio
 import sys
 import platform
 
-if platform.system() == 'Windows':
+if platform.system() == "Windows":
     # Configure event loop policy for Windows
     if sys.version_info >= (3, 8):
         asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
@@ -24,6 +24,17 @@ app.include_router(routes_scrape.router)
 app.include_router(routes_process.router)
 app.include_router(routes_analyze.router)
 
+
 @app.get("/")
 async def root():
-    return {"app": "qode-market-intel", "endpoints": ["/health", "/scrape/start", "/scrape/status/{id}", "/process/tfidf", "/analyze/signal", "/analyze/signal.png"]}
+    return {
+        "app": "qode-market-intel",
+        "endpoints": [
+            "/health",
+            "/scrape/start",
+            "/scrape/status/{id}",
+            "/process/tfidf",
+            "/analyze/signal",
+            "/analyze/signal.png",
+        ],
+    }

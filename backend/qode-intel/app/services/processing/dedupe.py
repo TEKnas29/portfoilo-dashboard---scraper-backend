@@ -10,7 +10,9 @@ def dedupe_tweets(tweets: Iterable[Tweet]) -> List[Tweet]:
     for t in tweets:
         if t.id in seen_ids:
             continue
-        key = f"{t.username}|{t.timestamp.isoformat()}|{t.content}".encode("utf-8", errors="ignore")
+        key = f"{t.username}|{t.timestamp.isoformat()}|{t.content}".encode(
+            "utf-8", errors="ignore"
+        )
         h = blake2b(key, digest_size=12).hexdigest()
         if h in seen_hashes:
             continue

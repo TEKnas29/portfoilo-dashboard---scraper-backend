@@ -11,9 +11,8 @@ def build_tfidf(df: pl.DataFrame, max_features: int = 5000):
         raise ValueError("❌ DataFrame must contain a 'content' column.")
 
     # Convert to string, strip whitespace, fill nulls
-    texts = (
-        df["content"]
-        .map_elements(lambda x: str(x).strip() if x is not None else "", return_dtype=pl.Utf8)
+    texts = df["content"].map_elements(
+        lambda x: str(x).strip() if x is not None else "", return_dtype=pl.Utf8
     )
 
     # Filter out empty strings
@@ -28,7 +27,7 @@ def build_tfidf(df: pl.DataFrame, max_features: int = 5000):
     vect = TfidfVectorizer(
         max_features=max_features,
         stop_words=None,  # don’t strip stopwords aggressively
-        token_pattern=r"(?u)\b\w+\b"  # keep unicode word chars
+        token_pattern=r"(?u)\b\w+\b",  # keep unicode word chars
     )
 
     X = vect.fit_transform(text_list)
