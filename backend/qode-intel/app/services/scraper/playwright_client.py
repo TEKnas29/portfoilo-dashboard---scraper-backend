@@ -2,7 +2,6 @@ from typing import List
 from datetime import datetime, timezone
 from app.models.tweet import Tweet
 from app.utils.text import extract_entities
-from app.utils.logging import logger
 import asyncio
 import sys
 import platform
@@ -31,60 +30,42 @@ class PlaywrightClient:
             browser = await p.firefox.launch(headless=True)
             context = await browser.new_context()
             page = await context.new_page()
-            
             try:
                 return await self._perform_login(page, username, password)
             finally:
                 await browser.close()
 
     async def _perform_login(self, page, username: str, password: str) -> bool:
-
-        logger.info("Logging into Twitter...")
         await page.goto("https://x.com/login", timeout=60000)
 
-        # Step 1: Username
+        # Username
         await page.fill('input[name="text"]', username)
         await page.press('input[name="text"]', "Enter")
 
-        # Step 2: Wait for password or alternative flow
+        # Password / alternative flows
         try:
             await page.wait_for_selector('input[name="password"]', timeout=15000)
-            logger.info("Password field detected directly")
         except Exception:
-            logger.info("Twitter asked for additional confirmation")
-            try:
-                if await page.locator('input[name="text"]').count():
-                    logger.info("Confirming username/email again")
-                    await page.fill('input[name="text"]', username)
-                    await page.press('input[name="text"]', "Enter")
-                    await page.wait_for_selector('input[name="password"]', timeout=20000)
-                elif await page.locator('input[name="verification_code"]').count():
-                    logger.error("Twitter requested verification code (not supported)")
-                    raise RuntimeError("Verification code required, cannot proceed with automation")
-                else:
-                    raise RuntimeError("Password field not found; unknown login flow")
-            except Exception as e:
-                # Capture screenshot for debugging
-                await page.screenshot(path="/app/login_debug.png")
-                logger.error(f"Login failed; screenshot saved at /app/login_debug.png: {e}")
-                raise
+            if await page.locator('input[name="text"]').count():
+                await page.fill('input[name="text"]', username)
+                await page.press('input[name="text"]', "Enter")
+                await page.wait_for_selector('input[name="password"]', timeout=20000)
+            elif await page.locator('input[name="verification_code"]').count():
+                raise RuntimeError("Verification code required, cannot proceed with automation")
+            else:
+                raise RuntimeError("Password field not found; unknown login flow")
 
-        # Step 3: Password
+        # Password
         await page.fill('input[name="password"]', password)
         await page.press('input[name="password"]', "Enter")
 
-        # Step 4: Wait for successful login
+        # Successful login
         await page.wait_for_selector('nav[role="navigation"]', timeout=30000)
-
-        # Save session state
         await page.context.storage_state(path=self.STATE_FILE)
-        logger.info("Twitter login successful. Session state saved.")
 
     async def check_login_state(self) -> bool:
-        """Check if the saved login state is valid"""
         if not os.path.exists(self.STATE_FILE):
             return False
-
         async with async_playwright() as p:
             browser = await p.firefox.launch(headless=True)
             try:
@@ -92,14 +73,12 @@ class PlaywrightClient:
                 page = await context.new_page()
                 await page.goto("https://x.com/home", timeout=15000)
                 return "login" not in page.url
-            except Exception as e:
-                logger.error(f"Error checking login state: {e}")
+            except Exception:
                 return False
             finally:
                 await browser.close()
 
     async def _get_authenticated_context(self, playwright):
-        """Get an authenticated browser context using saved state"""
         if not os.path.exists(self.STATE_FILE):
             raise RuntimeError("No login state found. Please login first.")
 
@@ -108,11 +87,10 @@ class PlaywrightClient:
             context = await browser.new_context(storage_state=self.STATE_FILE)
             page = await context.new_page()
             await page.goto("https://x.com/home", timeout=15000)
-            
+
             if "login" in page.url:
                 await browser.close()
                 raise RuntimeError("Session expired. Please login again.")
-                
             return browser, context
         except Exception as e:
             await browser.close()
@@ -126,7 +104,6 @@ class PlaywrightClient:
         tweets: List[Tweet] = []
         seen = set()
 
-        logger.info(f"Navigating to {url}")
         await page.goto(url, timeout=60000)
 
         last_height, no_new_count = 0, 0
@@ -134,7 +111,7 @@ class PlaywrightClient:
         SCROLL_STEP = 2000
         WAIT_AFTER_SCROLL = 2
 
-        sem = asyncio.Semaphore(20)  # limit concurrent card processing
+        sem = asyncio.Semaphore(20)
 
         async def process_card(card):
             async with sem:
@@ -148,7 +125,6 @@ class PlaywrightClient:
                         return { content, link, user };
                     }"""
                     )
-
                     if not data or not data["content"] or not data["link"]:
                         return None
 
@@ -162,7 +138,6 @@ class PlaywrightClient:
                         return None
 
                     mentions, hashtags_ex = extract_entities(data["content"])
-
                     return Tweet(
                         id=tid,
                         username=data["user"].strip("/"),
@@ -171,15 +146,13 @@ class PlaywrightClient:
                         mentions=mentions,
                         hashtags=list({*hashtags_ex, hashtag.strip('#').lower()}),
                     )
-                except Exception as e:
-                    logger.debug(f"Error processing card: {e}")
+                except Exception:
                     return None
 
         while len(tweets) < limit:
             try:
                 await page.wait_for_selector("article", timeout=10000)
                 cards = await page.locator("article").all()
-                logger.info(f"Found {len(cards)} tweet cards")
 
                 results = await asyncio.gather(*[process_card(c) for c in cards])
                 new_items = [r for r in results if r]
@@ -195,14 +168,12 @@ class PlaywrightClient:
                 if new_height == last_height and not new_items:
                     no_new_count += 1
                     if no_new_count >= MAX_NO_NEW_SCROLLS:
-                        logger.info("Reached end of page or no new tweets found")
                         break
                 else:
                     no_new_count = 0
                 last_height = new_height
 
-            except Exception as e:
-                logger.error(f"Error during scrolling/waiting: {e}")
+            except Exception:
                 break
 
         return tweets[:limit]
@@ -211,27 +182,33 @@ class PlaywrightClient:
         self, hashtags: List[str], since_utc: datetime, until_utc: datetime, limit: int
     ) -> List[Tweet]:
         if async_playwright is None:
-            logger.warning("Playwright not installed; skipping scrape.")
             return []
 
         tweets: List[Tweet] = []
         per = max(1, limit // max(1, len(hashtags)))
+        BATCH_SIZE = 3
 
         browser = None
         try:
             async with async_playwright() as p:
                 browser, context = await self._get_authenticated_context(p)
-                page = await context.new_page()
 
-                tasks = [self._scrape_hashtag(page, h, since_utc, until_utc, per) for h in hashtags]
-                results = await asyncio.gather(*tasks, return_exceptions=True)
+                for i in range(0, len(hashtags), BATCH_SIZE):
+                    batch = hashtags[i:i + BATCH_SIZE]
+                    pages = [await context.new_page() for _ in batch]
+                    tasks = [
+                        self._scrape_hashtag(pages[j], h, since_utc, until_utc, per)
+                        for j, h in enumerate(batch)
+                    ]
 
-                for idx, r in enumerate(results):
-                    if isinstance(r, Exception):
-                        logger.error(f"Error scraping {hashtags[idx]}: {r}")
-                        continue
-                    tweets.extend(r)
+                    results = await asyncio.gather(*tasks, return_exceptions=True)
+                    for page in pages:
+                        await page.close()
 
+                    for r in results:
+                        if isinstance(r, Exception):
+                            continue
+                        tweets.extend(r)
         finally:
             if browser:
                 await browser.close()
