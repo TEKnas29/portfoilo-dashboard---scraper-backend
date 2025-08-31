@@ -1,6 +1,6 @@
 import uuid
 from typing import Dict
-from fastapi import APIRouter, BackgroundTasks, Query, Depends
+from fastapi import APIRouter, BackgroundTasks, Query, Depends, HTTPException
 from app.config import SCRAPE_HASHTAGS, SCRAPE_MIN_TWEETS
 from app.utils.time import last_24h_window, utc_now
 from app.utils.logging import logger
@@ -11,9 +11,34 @@ from app.services.storage.paths import RAW_PATH
 from app.deps import get_backend
 import json
 
+from app.models.auth import LoginCredentials, LoginStatus
+
 router = APIRouter(prefix="/scrape", tags=["scrape"])
 
 JOBS: Dict[str, Dict] = {}
+
+@router.post("/login", response_model=LoginStatus)
+async def login(credentials: LoginCredentials, backend = Depends(get_backend)):
+    """Login to Twitter and save authentication state"""
+    try:
+        await backend.pw.login_and_save_state(credentials.username, credentials.password)
+        return LoginStatus(is_logged_in=True, message="Successfully logged in")
+    except Exception as e:
+        logger.error(f"Login failed: {e}")
+        raise HTTPException(status_code=401, detail=str(e))
+
+@router.get("/login/status", response_model=LoginStatus)
+async def check_login_status(backend = Depends(get_backend)):
+    """Check if we have a valid Twitter login state"""
+    try:
+        is_valid = await backend.pw.check_login_state()
+        return LoginStatus(
+            is_logged_in=is_valid,
+            message="Login state valid" if is_valid else "Not logged in or session expired"
+        )
+    except Exception as e:
+        logger.error(f"Error checking login status: {e}")
+        return LoginStatus(is_logged_in=False, message=str(e))
 
 async def _run_job(job_id: str, hashtags, limit, backend):
     JOBS[job_id]["status"] = "running"
